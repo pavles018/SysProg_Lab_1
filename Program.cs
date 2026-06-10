@@ -32,8 +32,7 @@ namespace TriviaServerVremenskoIsticanje
             {
                 HttpListenerContext context = listener.GetContext();
 
-                Thread thread = new Thread(() => ObradiZahtev(context));
-                thread.Start();
+                ThreadPool.QueueUserWorkItem(_=> ObradiZahtev(context));
             }
         }
 
