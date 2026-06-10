@@ -11,6 +11,7 @@ namespace TriviaServerVremenskoIsticanje
         private static readonly Dictionary<string, CacheItem> cache = new Dictionary<string, CacheItem>();
         private static readonly HashSet<string> requestsInProgress = new HashSet<string>();
         private static readonly object cacheLock = new object();
+        private static bool isActive = true;
 
         private const int CacheDurationSeconds = 120;
 
@@ -28,11 +29,38 @@ namespace TriviaServerVremenskoIsticanje
 
             Console.WriteLine("Server je pokrenut.\n");
 
-            while (true)
+            Thread ESCListenerThread = new Thread(() =>
             {
-                HttpListenerContext context = listener.GetContext();
+                Console.WriteLine("PokrenutEscListener");
+                while (isActive)
+                {
+                    ConsoleKeyInfo consoleKey = Console.ReadKey(true);
+                    if (consoleKey.Key == ConsoleKey.Escape)
+                    {
+                        isActive = false;
+                        listener.Stop();
+                        Console.WriteLine("\nESC -> gasim server");
+                        break;
+                    }
+                }
+            });
+            ESCListenerThread.Start();
+             
 
-                ThreadPool.QueueUserWorkItem(_=> ObradiZahtev(context));
+            while (isActive)
+            {
+                try
+                {
+                    HttpListenerContext context = listener.GetContext();
+
+                    ThreadPool.QueueUserWorkItem(_ => ObradiZahtev(context));
+
+                }
+                catch
+                {
+                    if (!isActive)
+                        break;
+                }
             }
         }
 
