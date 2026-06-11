@@ -31,7 +31,6 @@ namespace TriviaServerVremenskoIsticanje
 
             Thread ESCListenerThread = new Thread(() =>
             {
-                Console.WriteLine("PokrenutEscListener");
                 while (isActive)
                 {
                     ConsoleKeyInfo consoleKey = Console.ReadKey(true);
@@ -53,7 +52,7 @@ namespace TriviaServerVremenskoIsticanje
                 {
                     HttpListenerContext context = listener.GetContext();
 
-                    ThreadPool.QueueUserWorkItem(_ => ObradiZahtev(context));
+                    Task.Run( () => ObradiZahtev(context));
 
                 }
                 catch
@@ -64,7 +63,7 @@ namespace TriviaServerVremenskoIsticanje
             }
         }
 
-        private static void ObradiZahtev(HttpListenerContext context)
+        private static async Task ObradiZahtev(HttpListenerContext context)
         {
             try
             {
@@ -102,7 +101,7 @@ namespace TriviaServerVremenskoIsticanje
                 Stopwatch stopwatch = new Stopwatch();
                 stopwatch.Start();
 
-                string json = VratiPodatke(query, cacheKey);
+                string json = await VratiPodatke(query, cacheKey);
 
                 stopwatch.Stop();
 
@@ -116,7 +115,7 @@ namespace TriviaServerVremenskoIsticanje
             }
         }
 
-        private static string VratiPodatke(string query, string cacheKey)
+        private static async Task<string> VratiPodatke(string query, string cacheKey)
         {
             lock (cacheLock)
             {
@@ -170,7 +169,7 @@ namespace TriviaServerVremenskoIsticanje
 
             try
             {
-                string json = PozoviOpenTrivia(query);
+                string json = await PozoviOpenTrivia(query);
 
                 lock (cacheLock)
                 {
@@ -202,16 +201,30 @@ namespace TriviaServerVremenskoIsticanje
             }
         }
 
-        private static string PozoviOpenTrivia(string query)
+        private static async Task<string> PozoviOpenTrivia(string query)
         {
             string url =
                 "https://opentdb.com/api.php?" + query;
 
+            Task<HttpResponseMessage> responseTask = client.GetAsync(url);
+
+            responseTask.ContinueWith(t =>
+            {
+                if (t.IsCompletedSuccessfully)
+                {
+                    Console.WriteLine($"[ContinueWith] API poziv zavrsen za: {url}");
+                }
+                else
+                {
+                    Console.WriteLine("[ContinueWith] API poziv nije uspeo.");
+                }
+            });
+
             HttpResponseMessage response =
-                client.GetAsync(url).Result;
+                await responseTask;
 
             string json =
-                response.Content.ReadAsStringAsync().Result;
+                await response.Content.ReadAsStringAsync();
 
             JObject parsed = JObject.Parse(json);
 
